@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "9nBEGBs9VaNYcCI1muTC0CePj2EBB1uLB7HjlTski5tHDFtiRRtE9HaPBlsRq/Emd/qHv6XAi0sefA/1hn+Urg==",
+  "dgSpecHash": "8DQaMjs//q/lRgVnVqbk9QGqxQtd0EV59kRHmf0xGB81kxbnhk84grTXf9GUu78C1i8MOiq5QmGdo1xFo41Vng==",
   "success": true,
   "projectFilePath": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
   "expectedPackageFiles": [
@@ -48,6 +48,8 @@
     "C:\\Users\\Eier\\.nuget\\packages\\microsoft.sqlserver.server\\1.0.0\\microsoft.sqlserver.server.1.0.0.nupkg.sha512",
     "C:\\Users\\Eier\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
     "C:\\Users\\Eier\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\Eier\\.nuget\\packages\\npgsql\\8.0.2\\npgsql.8.0.2.nupkg.sha512",
+    "C:\\Users\\Eier\\.nuget\\packages\\npgsql.entityframeworkcore.postgresql\\8.0.2\\npgsql.entityframeworkcore.postgresql.8.0.2.nupkg.sha512",
     "C:\\Users\\Eier\\.nuget\\packages\\swashbuckle.aspnetcore\\6.5.0\\swashbuckle.aspnetcore.6.5.0.nupkg.sha512",
     "C:\\Users\\Eier\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.5.0\\swashbuckle.aspnetcore.swagger.6.5.0.nupkg.sha512",
     "C:\\Users\\Eier\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.5.0\\swashbuckle.aspnetcore.swaggergen.6.5.0.nupkg.sha512",
