@@ -1,27 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj": {}
+    "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj": {
+    "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
+        "projectUniqueName": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
         "projectName": "SimpLeX-Backend",
-        "projectPath": "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
-        "packagesPath": "C:\\Users\\siver\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\obj\\",
+        "projectPath": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
+        "packagesPath": "C:\\Users\\Eier\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\siver\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "C:\\Users\\Eier\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -40,7 +38,19 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[8.0.3, )"
+            },
+            "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[8.0.3, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
+              "target": "Package",
+              "version": "[8.0.3, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
               "target": "Package",
               "version": "[8.0.3, )"
             },
@@ -54,9 +64,13 @@
               "target": "Package",
               "version": "[8.0.3, )"
             },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[8.0.2, )"
+            },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
-              "version": "[6.4.0, )"
+              "version": "[6.5.0, )"
             }
           },
           "imports": [
