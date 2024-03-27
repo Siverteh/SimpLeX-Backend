@@ -4,13 +4,16 @@ using SimpLeX_Backend.Models;
 
 namespace SimpLeX_Backend.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<User>
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
         }
 
-        public DbSet<User> Users { get; set; }
+        public DbSet<ApplicationUser> Users { get; set; }
+        
+        public DbSet<Project> Projects { get; set; }
+
     }
 }

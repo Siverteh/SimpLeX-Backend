@@ -9,8 +9,11 @@ using SimpLeX_Backend.Models;
 using Microsoft.Extensions.Configuration; // Import the IConfiguration namespace
 using Microsoft.IdentityModel.Tokens; // For TokenValidationParameters
 using Microsoft.AspNetCore.Authentication.JwtBearer; // For JWT Bearer
+using Microsoft.AspNetCore.Authorization;
 using System.Text; // For Encoding
 using System;
+using System.Security.Cryptography;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,7 +36,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 // Configure ASP.NET Core Identity to use your User model and your custom DbContext
-builder.Services.AddIdentity<User, IdentityRole>(options =>
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
         options.SignIn.RequireConfirmedAccount = true;
         options.Password.RequireDigit = true;
@@ -49,31 +52,28 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
 builder.Services.AddScoped<TokenService>();
 
 // Register the IDocumentService with an HttpClient configured to use the base address of your service.
-builder.Services.AddHttpClient<IDocumentService, DocumentService>(client =>
+builder.Services.AddHttpClient<DocumentService>(client =>
 {
     client.BaseAddress = new Uri("http://simplex-compiler-service:8080"); // Assuming you have this URL in your configuration
 });
 
 // Retrieve the JWTKey from appsettings.json
-var jwtKey = builder.Configuration.GetValue<string>("JwtKey");
-var key = Encoding.ASCII.GetBytes(jwtKey);
+var jwtKey = builder.Configuration.GetValue<string>("JwtKey") ?? throw new InvalidOperationException("JWT Key is not configured.");
 
 // Configure JWT authentication
-builder.Services.AddAuthentication(x =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(x =>
-    {
-        x.RequireHttpsMetadata = false;
-        x.SaveToken = true;
-        x.TokenValidationParameters = new TokenValidationParameters
+        options.TokenValidationParameters = new TokenValidationParameters
         {
+            ClockSkew = TimeSpan.Zero,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = false,
-            ValidateAudience = false
+            ValidIssuer = "apiWithAuthBackend",
+            ValidAudience = "apiWithAuthBackend",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         };
     });
 
@@ -89,6 +89,11 @@ using (var scope = app.Services.CreateScope())
 // Swagger configuration
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "SimpLeX API v1"));
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Map controllers
 app.MapControllers();

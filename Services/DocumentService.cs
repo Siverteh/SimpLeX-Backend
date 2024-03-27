@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SimpLeX_Backend.Services
 {
-    public class DocumentService : IDocumentService
+    public class DocumentService
     {
         private readonly HttpClient _httpClient;
         private readonly string _compilerServiceBaseUrl;

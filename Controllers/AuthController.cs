@@ -11,16 +11,15 @@ namespace SimpLeX_Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class
-        AuthController : ControllerBase // Inherits from ControllerBase, providing many properties and methods for handling HTTP requests.
+    public class AuthController : ControllerBase // Inherits from ControllerBase, providing many properties and methods for handling HTTP requests.
     {
         // Fields to hold the services injected through the constructor.
-        private readonly UserManager<User> _userManager; // Manages users in a persistence store.
+        private readonly UserManager<ApplicationUser> _userManager; // Manages users in a persistence store.
         private readonly ApplicationDbContext _db; // The EF Core database context.
         private readonly TokenService _tokenService; // A custom service for generating JWT tokens.
 
         // The constructor receives instances of UserManager, DbContext, and TokenService via dependency injection.
-        public AuthController(UserManager<User> userManager, ApplicationDbContext db, TokenService tokenService)
+        public AuthController(UserManager<ApplicationUser> userManager, ApplicationDbContext db, TokenService tokenService)
         {
             _userManager = userManager;
             _db = db;
@@ -45,9 +44,15 @@ namespace SimpLeX_Backend.Controllers
                 // If not, returns a 400 Bad Request.
                 return BadRequest("Passwords do not match.");
             }
-            
-            var existingUser = await _userManager.FindByEmailAsync(request.Email);
+
+            var existingUser = await _userManager.FindByNameAsync(request.UserName);
             if (existingUser != null)
+            {
+                return BadRequest("Username is already in use.");
+            }
+            
+            var existingEmail = await _userManager.FindByEmailAsync(request.Email);
+            if (existingEmail != null)
             {
                 // Directly return a BadRequest for email in use. Adjust the message as necessary.
                 return BadRequest("Email is already in use.");
@@ -55,7 +60,7 @@ namespace SimpLeX_Backend.Controllers
 
             // Tries to create a new user with the provided username, email, and password.
             var result = await _userManager.CreateAsync(
-                new User() { UserName = request.UserName, Email = request.Email },
+                new ApplicationUser() { UserName = request.UserName, Email = request.Email },
                 request.Password
             );
 
@@ -82,31 +87,29 @@ namespace SimpLeX_Backend.Controllers
         [Route("Login")]
         public async Task<ActionResult<AuthResponse>> Authenticate([FromBody] AuthRequest request)
         {
+            // Checks if the model state is valid.
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            var managedUser = await _userManager.FindByNameAsync(request.UserName);
-            if (managedUser == null)
+            // Async function that finds the user in the database by username.
+            var user = await _userManager.FindByNameAsync(request.UserName);
+    
+            // If the user does not exist or the password does not match, return bad credentials.
+            if (user == null || !(await _userManager.CheckPasswordAsync(user, request.Password)))
             {
                 return BadRequest("Bad credentials");
             }
-            var isPasswordValid = await _userManager.CheckPasswordAsync(managedUser, request.Password);
-            if (!isPasswordValid)
-            {
-                return BadRequest("Bad credentials");
-            }
-            var userInDb = _db.Users.FirstOrDefault(u => u.UserName == request.UserName);
-            if (userInDb is null)
-                return BadRequest("User does not exist");
-            
-            var accessToken = _tokenService.CreateToken(userInDb);
-            await _db.SaveChangesAsync();
+    
+            // If the user exists and the password is correct, generate a JWT token.
+            var accessToken = _tokenService.CreateToken(user);
+    
+            // Return a successful login with username, email, and the JWT token.
             return Ok(new AuthResponse
             {
-                UserName = userInDb.UserName,
-                Email = userInDb.Email,
+                UserName = user.UserName,
+                Email = user.Email,
                 Token = accessToken,
             });
         }
