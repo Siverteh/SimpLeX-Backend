@@ -13,6 +13,9 @@ namespace SimpLeX_Backend.Models
         [Required]
         public string Title { get; set; } = null!;
 
+        [Required] 
+        public string Owner { get; set; } = null!;
+
         public string? LatexCode { get; set; } // Nullable, assuming it can be empty.
 
         [Required]
