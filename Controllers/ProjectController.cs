@@ -27,9 +27,9 @@ namespace SimpLeX_Backend.Controllers
         [Route("Projects")]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            var UserId = _userManager.GetUserId(User);
+            var userId = _userManager.GetUserId(User);
             var projects = await _context.Projects
-                .Where(p => p.UserId == UserId)
+                .Where(p => p.UserId == userId)
                 .ToListAsync();
 
             return projects;
@@ -38,7 +38,7 @@ namespace SimpLeX_Backend.Controllers
         [HttpPost("Create")]
         public async Task<IActionResult> CreateProject([FromBody] ProjectRequest model)
         {
-            if (model == null || string.IsNullOrWhiteSpace(model.Title))
+            if (string.IsNullOrWhiteSpace(model.Title))
             {
                 return BadRequest("Project title is required.");
             }

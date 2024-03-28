@@ -8,7 +8,8 @@ namespace SimpLeX_Backend.Models
     public class Project
     {
         [Key]
-        public int ProjectId { get; set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public string ProjectId { get; set; } = null!;
 
         [Required]
         public string Title { get; set; } = null!;
