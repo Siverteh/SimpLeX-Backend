@@ -57,24 +57,16 @@ namespace SimpLeX_Backend.Controllers
             {
                 return NotFound("Project not found.");
             }
+            
+            var compiledPdfContent = await _documentService.CompileLatexAsync(model.LatexCode);
 
-            try
+            if (compiledPdfContent.Length > 0)
             {
-                var compiledPdfContent = await _documentService.CompileLatexAsync(model.LatexCode);
-
-                if (compiledPdfContent.Length > 0)
-                {
-                    return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}_compiled.pdf");
-                }
-                else
-                {
-                    return StatusCode(500, "Compilation failed.");
-                }
+                return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}_compiled.pdf");
             }
-            catch (System.Exception ex)
+            else
             {
-                // Log the exception here
-                return StatusCode(500, $"An error occurred while compiling the document: {ex.Message}");
+                return StatusCode(500, "Compilation failed.");
             }
         }
         
