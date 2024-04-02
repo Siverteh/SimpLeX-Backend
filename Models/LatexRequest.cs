@@ -5,5 +5,7 @@ namespace SimpLeX_Backend.Models
     {
         public string ProjectId { get; set; }
         public string LatexCode { get; set; }
+        
+        public string WorkspaceState { get; set; }
     }
 }

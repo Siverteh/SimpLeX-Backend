@@ -19,12 +19,14 @@ namespace SimpLeX_Backend.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly DocumentService _documentService;
+        private readonly ILogger<EditorController> _logger;
 
-        public EditorController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, DocumentService documentService)
+        public EditorController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, DocumentService documentService, ILogger<EditorController> logger)
         {
             _context = context;
             _userManager = userManager;
             _documentService = documentService;
+            _logger = logger;
         }
 
         // GET: api/Editor/{id}
@@ -47,7 +49,8 @@ namespace SimpLeX_Backend.Controllers
         [HttpPost("Compile")]
         public async Task<IActionResult> Compile([FromBody] LatexRequest model)
         {
-            if (model == null || string.IsNullOrWhiteSpace(model.LatexCode))
+            
+            if (string.IsNullOrEmpty(model.ProjectId) || string.IsNullOrWhiteSpace(model.LatexCode))
             {
                 return BadRequest("Invalid model.");
             }
@@ -59,7 +62,7 @@ namespace SimpLeX_Backend.Controllers
             }
             
             var compiledPdfContent = await _documentService.CompileLatexAsync(model.LatexCode);
-
+            
             if (compiledPdfContent.Length > 0)
             {
                 return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}_compiled.pdf");
@@ -86,11 +89,11 @@ namespace SimpLeX_Backend.Controllers
             }
 
             project.LatexCode = model.LatexCode;
+            project.WorkspaceState = model.WorkspaceState;
             project.LastModifiedDate = DateTime.UtcNow.AddHours(1); // Update the last modified date
             await _context.SaveChangesAsync();
 
             return Ok();
         }
-
     }
 }

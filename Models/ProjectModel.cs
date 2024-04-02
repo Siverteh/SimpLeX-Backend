@@ -18,6 +18,8 @@ namespace SimpLeX_Backend.Models
         public string Owner { get; set; } = null!;
 
         public string? LatexCode { get; set; } // Nullable, assuming it can be empty.
+        
+        public string? WorkspaceState { get; set; }
 
         [Required]
         public DateTime CreationDate { get; set; }
