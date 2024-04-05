@@ -11,14 +11,14 @@ namespace SimpLeX_Backend.Services
     public class TokenService
     {
         private readonly IConfiguration _configuration;
-        private const int ExpirationMinutes = 30;
+        private const int ExpirationMinutes = 500;
 
         public TokenService(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        public string CreateToken(User user)
+        public string CreateToken(ApplicationUser user)
         {
             var expiration = DateTime.UtcNow.AddMinutes(ExpirationMinutes);
             var token = CreateJwtToken(
@@ -39,28 +39,26 @@ namespace SimpLeX_Backend.Services
                 signingCredentials: credentials
             );
 
-        private List<Claim> CreateClaims(User user)
+        private List<Claim> CreateClaims(ApplicationUser user)
         {
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, "TokenForTheApiWithAuth"),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id), 
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString(CultureInfo.InvariantCulture)),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.Email, user.Email)
             };
             return claims;
         }
 
+
         private SigningCredentials CreateSigningCredentials()
         {
-            var jwtKey = _configuration.GetValue<string>("JwtKey");
-            var key = Encoding.ASCII.GetBytes(jwtKey);
-            return new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256
-            );
+            var jwtKey = _configuration.GetValue<string>("JwtKey") ?? throw new InvalidOperationException("JWT Key is not configured.");
+            var key = Encoding.UTF8.GetBytes(jwtKey);
+            return new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
         }
     }
 }

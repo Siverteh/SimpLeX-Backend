@@ -6,17 +6,19 @@ using System.Threading.Tasks;
 
 namespace SimpLeX_Backend.Services
 {
-    public class DocumentService : IDocumentService
+    public class DocumentService
     {
         private readonly HttpClient _httpClient;
         private readonly string _compilerServiceBaseUrl;
+        private readonly ILogger<DocumentService> _logger;
 
-        public DocumentService(HttpClient httpClient, IConfiguration configuration)
+        public DocumentService(HttpClient httpClient, IConfiguration configuration, ILogger<DocumentService> logger)
         {
             _httpClient = httpClient;
             // Retrieve the base URL of the compiler service from the application's configuration.
             // Ensure that "CompilerService:BaseUrl" is defined in your appsettings.json or through environment variables.
             _compilerServiceBaseUrl = configuration["CompilerService:BaseUrl"];
+            _logger = logger;
         }
 
         public async Task<byte[]> CompileLatexAsync(string latexCode)
@@ -31,6 +33,7 @@ namespace SimpLeX_Backend.Services
             {
                 // If the request is successful, read the PDF content as a byte array
                 var pdfContent = await response.Content.ReadAsByteArrayAsync();
+                _logger.LogInformation("Compilation was a success");
                 return pdfContent;
             }
             else

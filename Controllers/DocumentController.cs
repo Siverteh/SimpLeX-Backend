@@ -7,9 +7,9 @@ using SimpLeX_Backend.Services;
 [ApiController]
 public class DocumentController : ControllerBase
 {
-    private readonly IDocumentService _documentService; // Assuming you have a service for handling document operations
+    private readonly DocumentService _documentService; // Assuming you have a service for handling document operations
 
-    public DocumentController(IDocumentService documentService)
+    public DocumentController(DocumentService documentService)
     {
         _documentService = documentService;
     }
