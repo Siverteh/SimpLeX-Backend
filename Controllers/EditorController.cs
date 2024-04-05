@@ -90,7 +90,7 @@ namespace SimpLeX_Backend.Controllers
 
             project.LatexCode = model.LatexCode;
             project.WorkspaceState = model.WorkspaceState;
-            project.LastModifiedDate = DateTime.UtcNow.AddHours(1); // Update the last modified date
+            project.LastModifiedDate = DateTime.UtcNow.AddHours(2); // Update the last modified date
             await _context.SaveChangesAsync();
 
             return Ok();

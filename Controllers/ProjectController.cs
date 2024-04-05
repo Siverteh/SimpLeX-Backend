@@ -62,8 +62,8 @@ namespace SimpLeX_Backend.Controllers
                 Owner = userName,
                 LatexCode = "", // Empty initially
                 WorkspaceState = null,
-                CreationDate = DateTime.UtcNow,
-                LastModifiedDate = DateTime.UtcNow,
+                CreationDate = DateTime.UtcNow.AddHours(2),
+                LastModifiedDate = DateTime.UtcNow.AddHours(2),
                 UserId = userId // Set the user ID
             };
 
@@ -94,8 +94,8 @@ namespace SimpLeX_Backend.Controllers
                 LatexCode = originalProject.LatexCode,
                 WorkspaceState = originalProject.WorkspaceState,
                 Owner = originalProject.Owner, 
-                CreationDate = DateTime.UtcNow,
-                LastModifiedDate = DateTime.UtcNow,
+                CreationDate = DateTime.UtcNow.AddHours(2),
+                LastModifiedDate = DateTime.UtcNow.AddHours(2),
                 UserId = userId
             };
 
