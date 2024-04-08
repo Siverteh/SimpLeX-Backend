@@ -55,7 +55,9 @@ public class WebSocketService
                     case "cursorMove":
                         BroadcastCursorMove(projectId, webSocket, message.Data);
                         break;
-                    // Handle other actions...
+                    case "blocklyUpdate":
+                        BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
+                        break;
                 }
             }
             catch (JsonException ex)
@@ -70,16 +72,41 @@ public class WebSocketService
         RemoveSocketFromProject(projectId, webSocket);
     }
 
-    private async void BroadcastCursorMove(string projectId, WebSocket sender, dynamic cursorPosition)
+    private async Task BroadcastCursorMove(string projectId, WebSocket sender, dynamic cursorPosition)
     {
-        var sockets = _socketsByProject[projectId];
-        foreach (var socket in sockets)
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
-            if (socket != sender && socket.State == WebSocketState.Open)
-            {
-                var message = JsonConvert.SerializeObject(new { Action = "cursorMove", Data = cursorPosition });
-                await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(message)), WebSocketMessageType.Text, true, CancellationToken.None);
-            }
+            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, new { Action = "cursorMove", Data = cursorPosition }));
+            await Task.WhenAll(tasks);
         }
     }
+
+    private async Task BroadcastBlocklyUpdate(string projectId, WebSocket sender, dynamic blocklyData)
+    {
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
+        {
+            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, new { Action = "blocklyUpdate", Data = blocklyData }));
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    private async Task SafeSendAsync(WebSocket socket, object data)
+    {
+        var message = JsonConvert.SerializeObject(data);
+        var buffer = Encoding.UTF8.GetBytes(message);
+        var segment = new ArraySegment<byte>(buffer);
+
+        try
+        {
+            await socket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to send WebSocket message: {ex.Message}");
+            // Consider handling the failure, e.g., removing the faulty socket.
+        }
+    }
+
 }
