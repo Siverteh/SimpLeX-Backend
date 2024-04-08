@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer; // For JWT Bearer
 using Microsoft.AspNetCore.Authorization;
 using System.Text; // For Encoding
 using System;
+using System.Net.WebSockets;
 using System.Security.Cryptography;
 
 
@@ -30,10 +31,20 @@ var connectionString = $"Host={server};Port={port};Database={database};Username=
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddControllersWithViews();
+builder.Services.AddSingleton<WebSocketService>();
 
 // Use the constructed connection string to add your DbContext with Npgsql for PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigin",
+        builder => builder.WithOrigins("http://10.225.149.19:31688/")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 // Configure ASP.NET Core Identity to use your User model and your custom DbContext
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -79,23 +90,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
-// Automatically apply any pending migrations
+// Apply pending database migrations
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate(); // This will apply all pending migrations
+    dbContext.Database.Migrate();
 }
 
-// Swagger configuration
+// Configure the HTTP request pipeline.
 app.UseSwagger();
-app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "SimpLeX API v1"));
+app.UseSwaggerUI();
 
 app.UseRouting();
 
+// Place the UseWebSockets call before UseCors, UseAuthentication, and UseAuthorization
+app.UseWebSockets(); // Enable WebSocket support
+
+app.UseCors("AllowSpecificOrigin");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map controllers
 app.MapControllers();
 
 app.Run();
