@@ -34,5 +34,7 @@ namespace SimpLeX_Backend.Models
         // [ForeignKey("UserId")] is used to specify the foreign key this navigation property relates to.
         [ForeignKey(nameof(UserId))]
         public virtual ApplicationUser User { get; set; } = null!;
+        
+        public virtual ICollection<Collaborator> Collaborators { get; set; } = new List<Collaborator>();
     }
 }

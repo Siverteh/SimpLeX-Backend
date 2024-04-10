@@ -44,8 +44,6 @@ public class WebSocketService
         while (!result.CloseStatus.HasValue)
         {
             var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            Console.WriteLine($"Received message: {messageJson}");
-
             try
             {
                 dynamic message = JsonConvert.DeserializeObject(messageJson);
@@ -54,6 +52,9 @@ public class WebSocketService
                 {
                     case "cursorMove":
                         BroadcastCursorMove(projectId, webSocket, message.Data);
+                        break;
+                    case "blocklyUpdateImportant":
+                        BroadcastBlocklyUpdateImportant(projectId, webSocket, message.Data);
                         break;
                     case "blocklyUpdate":
                         BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
@@ -78,6 +79,16 @@ public class WebSocketService
         {
             var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
                 .Select(socket => SafeSendAsync(socket, new { Action = "cursorMove", Data = cursorPosition }));
+            await Task.WhenAll(tasks);
+        }
+    }
+    
+    private async Task BroadcastBlocklyUpdateImportant(string projectId, WebSocket sender, dynamic blocklyData)
+    {
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
+        {
+            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, new { Action = "blocklyUpdateImportant", Data = blocklyData }));
             await Task.WhenAll(tasks);
         }
     }
