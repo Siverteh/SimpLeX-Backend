@@ -62,6 +62,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddScoped<TokenService>();
 
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+    options.JsonSerializerOptions.WriteIndented = true;
+});
+
 // Register the IDocumentService with an HttpClient configured to use the base address of your service.
 builder.Services.AddHttpClient<DocumentService>(client =>
 {

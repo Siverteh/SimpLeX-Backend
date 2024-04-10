@@ -44,8 +44,6 @@ public class WebSocketService
         while (!result.CloseStatus.HasValue)
         {
             var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            Console.WriteLine($"Received message: {messageJson}");
-
             try
             {
                 dynamic message = JsonConvert.DeserializeObject(messageJson);

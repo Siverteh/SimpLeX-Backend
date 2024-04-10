@@ -33,11 +33,22 @@ namespace SimpLeX_Backend.Controllers
         {
             var userId = _userManager.GetUserId(User);
             var projects = await _context.Projects
-                .Where(p => p.UserId == userId)
+                .Where(p => p.UserId == userId || p.Collaborators.Any(c => c.UserId == userId))
+                .Select(p => new
+                {
+                    ProjectId = p.ProjectId,
+                    Title = p.Title,
+                    Owner = p.Owner,
+                    LastModifiedDate = p.LastModifiedDate,
+                    IsCollaborator = p.Collaborators.Any(c => c.UserId == userId)
+                })
                 .ToListAsync();
 
-            return projects;
+            return Ok(projects);
         }
+
+
+
         
         [HttpPost("Create")]
         public async Task<IActionResult> CreateProject([FromBody] ProjectRequest model)
