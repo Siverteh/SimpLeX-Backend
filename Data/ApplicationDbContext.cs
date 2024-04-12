@@ -14,6 +14,10 @@ namespace SimpLeX_Backend.Data
         public DbSet<ApplicationUser> Users { get; set; }
         
         public DbSet<Project> Projects { get; set; }
+        
+        public DbSet<Collaborator> Collaborators { get; set; }
+        
+        public DbSet<ShareLink> ShareLinks { get; set; }
 
     }
 }

@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using SimpLeX_Backend.Data;
 using SimpLeX_Backend.Models;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using SimpLeX_Backend.Services;
 
@@ -34,22 +36,26 @@ namespace SimpLeX_Backend.Controllers
         public async Task<ActionResult<Project>> GetProject(string id)
         {
             var userId = _userManager.GetUserId(User);
-            
+
+            // Ensure you load the User related to the Project and the Users related to the Collaborators.
             var project = await _context.Projects
-                .FirstOrDefaultAsync(p => p.ProjectId == id && p.UserId == userId);
+                .Include(p => p.User) // Include the project owner details
+                .Include(p => p.Collaborators) // Include details about collaborators
+                .ThenInclude(c => c.User) // Include user details for each collaborator
+                .FirstOrDefaultAsync(p => p.ProjectId == id && (p.UserId == userId || p.Collaborators.Any(c => c.UserId == userId)));
 
             if (project == null)
             {
-                return NotFound();
+                return NotFound("Project not found or access denied.");
             }
 
             return project;
         }
 
+        
         [HttpPost("Compile")]
         public async Task<IActionResult> Compile([FromBody] LatexRequest model)
         {
-            
             if (string.IsNullOrEmpty(model.ProjectId) || string.IsNullOrWhiteSpace(model.LatexCode))
             {
                 return BadRequest("Invalid model.");
@@ -60,18 +66,65 @@ namespace SimpLeX_Backend.Controllers
             {
                 return NotFound("Project not found.");
             }
-            
+
             var compiledPdfContent = await _documentService.CompileLatexAsync(model.LatexCode);
-            
             if (compiledPdfContent.Length > 0)
             {
-                return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}_compiled.pdf");
+                // Calculate word count
+                var wordCount = CalculateWordCount(model.LatexCode);
+
+                // Return file along with word count
+                var pdfFileName = $"{project.Title.Replace(" ", "_")}_compiled.pdf";
+                Response.Headers.Add("X-Word-Count", wordCount.ToString());
+                return File(compiledPdfContent, "application/pdf", pdfFileName);
             }
             else
             {
                 return StatusCode(500, "Compilation failed.");
             }
         }
+
+        public static int CalculateWordCount(string latexString)
+        {
+            // Normalize new lines and remove LaTeX comments
+            var cleanedString = Regex.Replace(latexString, @"%.*?\n", " ");
+
+            // Handle itemize and enumerate differently to include words after \item
+            string[] listEnvironments = { "itemize", "enumerate" };
+            foreach (var env in listEnvironments)
+            {
+                cleanedString = Regex.Replace(cleanedString, $@"\\begin\{{{env}\}}(.*?)\\end\{{{env}\}}", 
+                    new MatchEvaluator((Match m) =>
+                    {
+                        // Remove \item and other LaTeX commands within the list, count words normally
+                        string innerText = m.Groups[1].Value;
+                        innerText = Regex.Replace(innerText, @"\\item", "");  // Remove \item
+                        innerText = Regex.Replace(innerText, @"\\\w+(\[[^\]]*\])?(\{[^\}]*\})?", " ");  // Remove other commands
+                        return innerText;
+                    }), 
+                    RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            }
+
+            // Remove content within other complex LaTeX environments
+            string[] ignoreEnvironments = { "equation", "align", "figure", "table" };
+            foreach (var env in ignoreEnvironments)
+            {
+                cleanedString = Regex.Replace(cleanedString, $@"\\begin\{{{env}\}}.*?\\end\{{{env}\}}", " ", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            }
+
+            // Remove remaining LaTeX commands and braces
+            cleanedString = Regex.Replace(cleanedString, @"\\\w*[\[\(].*?[\]\)]", " "); // Commands with brackets or parentheses
+            cleanedString = Regex.Replace(cleanedString, @"\\\w+", " "); // Commands without arguments
+            cleanedString = Regex.Replace(cleanedString, @"[{}]", " "); // Curly braces
+            cleanedString = Regex.Replace(cleanedString, @"\s+", " "); // Normalize spaces
+
+            // Count words
+            return Regex.Matches(cleanedString, @"\b\w+\b").Count - 11;
+        }
+
+
+
+
         
         [HttpPost]
         [Route("SaveLatex")]
@@ -94,6 +147,86 @@ namespace SimpLeX_Backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok();
+        }
+        
+        [HttpGet("Share/{projectId}")]
+        public async Task<ActionResult> GenerateShareLink(string projectId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == projectId && p.UserId == userId);
+            if (project == null)
+            {
+                return NotFound("Project not found or access denied.");
+            }
+
+            var token = GenerateSecureToken();
+            var expiry = DateTime.UtcNow.AddDays(7); // Token validity for 7 days
+
+            var shareLink = new ShareLink
+            {
+                ProjectId = projectId,
+                InvitationToken = token,
+                TokenExpiry = expiry
+            };
+
+            _context.ShareLinks.Add(shareLink);
+            await _context.SaveChangesAsync();
+
+            // Redirect to the frontend handling route
+            var baseUrl = "http://10.225.149.19:31688";  // Change to your actual domain
+            var link = $"{baseUrl}/Redeem/{token}";
+
+            return Ok(new { link = link });
+        }
+
+
+        
+        private string GenerateSecureToken()
+        {
+            using (var randomNumberGenerator = RandomNumberGenerator.Create())
+            {
+                var randomBytes = new byte[32];
+                randomNumberGenerator.GetBytes(randomBytes);
+                return Convert.ToBase64String(randomBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            }
+        }
+        
+        [HttpGet("RedeemInvitation/{token}")]
+        public async Task<ActionResult> RedeemInvitation(string token)
+        {
+            var shareLink = await _context.ShareLinks
+                .Include(l => l.Project)
+                .SingleOrDefaultAsync(l => l.InvitationToken == token && l.TokenExpiry > DateTime.UtcNow);
+
+            if (shareLink == null)
+            {
+                return NotFound("Invalid or expired token.");
+            }
+
+            var userId = _userManager.GetUserId(User);
+
+            if (string.IsNullOrEmpty(userId)) {
+                // If not logged in, just return the project ID to allow client-side handling
+                return Ok(new { projectId = shareLink.ProjectId });
+            }
+
+            // Check if already a collaborator
+            var existingCollaborator = await _context.Collaborators
+                .AnyAsync(c => c.ProjectId == shareLink.ProjectId && c.UserId == userId);
+            if (!existingCollaborator)
+            {
+                var collaborator = new Collaborator
+                {
+                    ProjectId = shareLink.ProjectId,
+                    UserId = userId,
+                    AccessType = "editor"  // Default access type
+                };
+
+                _context.Collaborators.Add(collaborator);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "Access granted.", projectId = shareLink.ProjectId });
         }
     }
 }
