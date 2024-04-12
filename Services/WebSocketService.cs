@@ -11,45 +11,39 @@ using Newtonsoft.Json;
 public class WebSocketService
 {
     private ConcurrentDictionary<string, Dictionary<WebSocket, string>> _socketsByProject = new ConcurrentDictionary<string, Dictionary<WebSocket, string>>();
-    private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);  // Create a semaphore for locking
 
-    public async Task AddSocketToProject(string projectId, WebSocket socket, string userName)
+    public void AddSocketToProject(string projectId, WebSocket socket, string userName)
     {
-        await semaphore.WaitAsync();  // Asynchronously wait to enter the semaphore
-        try
+        var sockets = _socketsByProject.GetOrAdd(projectId, _ => new Dictionary<WebSocket, string>());
+        Console.WriteLine("Issue here 6");
+        lock (sockets)
         {
-            var sockets = _socketsByProject.GetOrAdd(projectId, _ => new Dictionary<WebSocket, string>());
+            Console.WriteLine("Issue here 7");
             sockets[socket] = userName;
-            Console.WriteLine($"Added {userName} to project {projectId}.");
-            await BroadcastCollaborators(projectId);  // Await the broadcast within the semaphore
-        }
-        finally
-        {
-            semaphore.Release();  // Release the semaphore
+            BroadcastCollaborators(projectId);  // Use Task.Run to avoid deadlock in lock
         }
     }
 
     public async Task RemoveSocketFromProject(string projectId, WebSocket socket)
     {
-        await semaphore.WaitAsync();
-        try
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
-            if (_socketsByProject.TryGetValue(projectId, out var sockets))
+            Console.WriteLine("Issue here 8");
+            bool shouldBroadcast = false;
+            lock (sockets)
             {
-                sockets.Remove(socket);
-                if (sockets.Count == 0)
+                Console.WriteLine("Issue here 9");
+                if (sockets.Remove(socket) && sockets.Count > 0)
                 {
-                    _socketsByProject.TryRemove(projectId, out _);
-                }
-                else
-                {
-                    await BroadcastCollaborators(projectId);
+                    Console.WriteLine("Issue here 10");
+                    shouldBroadcast = true;
                 }
             }
-        }
-        finally
-        {
-            semaphore.Release();
+            if (shouldBroadcast)
+            {
+                Console.WriteLine("Issue here 11");
+                BroadcastCollaborators(projectId);
+            }
         }
     }
 
@@ -57,8 +51,12 @@ public class WebSocketService
     public async Task HandleWebSocketAsync(string projectId, WebSocket webSocket)
     {
         var buffer = new byte[1024 * 4];
-        WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        Console.WriteLine("Issue here 12");
+        WebSocketReceiveResult result =
+            await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
+        Console.WriteLine("Issue here 13");
+        
         while (!result.CloseStatus.HasValue)
         {
             var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
@@ -66,6 +64,7 @@ public class WebSocketService
             {
                 dynamic message = JsonConvert.DeserializeObject(messageJson);
                 string action = message.Action;
+                Console.WriteLine("Issue here 14");
                 switch (action)
                 {
                     case "cursorMove":
@@ -77,6 +76,10 @@ public class WebSocketService
                     case "blocklyUpdate":
                         await BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
                         break;
+                    case "newChat":
+                        //saveChatToDB()
+                        BroadcastNewChat(projectId, webSocket, message.Data);
+                        break;
                 }
             }
             catch (JsonException ex)
@@ -87,8 +90,11 @@ public class WebSocketService
             result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
         }
 
+        Console.WriteLine("Issue here 15");
         await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+        Console.WriteLine("Issue here 16");
         await RemoveSocketFromProject(projectId, webSocket);
+        Console.WriteLine("Issue here 17");
     }
 
     private async Task BroadcastCollaborators(string projectId)
@@ -140,6 +146,7 @@ public class WebSocketService
         }
     }
 
+
     private async Task BroadcastBlocklyUpdate(string projectId, WebSocket sender, dynamic blocklyData)
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
@@ -156,6 +163,23 @@ public class WebSocketService
     }
 
 
+    private async Task BroadcastNewChat(string projectId, WebSocket sender, dynamic chatData)
+    {
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
+        {
+            var data = new { Action = "newChat", Data = chatData };
+            var message = JsonConvert.SerializeObject(data);
+            var buffer = Encoding.UTF8.GetBytes(message);
+            var segment = new ArraySegment<byte>(buffer);
+
+            var tasks = sockets.Keys
+                .Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, segment, projectId));
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    
     private async Task SafeSendAsync(WebSocket socket, ArraySegment<byte> data, string projectId)
     {
         if (socket.State == WebSocketState.Open)
@@ -178,7 +202,4 @@ public class WebSocketService
             await RemoveSocketFromProject(projectId, socket);
         }
     }
-
-
-
 }

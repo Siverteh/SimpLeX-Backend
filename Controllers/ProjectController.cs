@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -48,6 +49,7 @@ namespace SimpLeX_Backend.Controllers
 
             return Ok(projects);
         }
+
 
         [HttpPost("Create")]
         public async Task<IActionResult> CreateProject([FromBody] ProjectRequest model)
@@ -108,9 +110,9 @@ namespace SimpLeX_Backend.Controllers
                 LatexCode = originalProject.LatexCode,
                 WorkspaceState = originalProject.WorkspaceState,
                 Owner = originalProject.Owner,
-                CreationDate = DateTime.UtcNow,
-                LastModifiedDate = DateTime.UtcNow,
-                UserId = userId // Set the copier as the new owner
+                CreationDate = DateTime.UtcNow.AddHours(2),
+                LastModifiedDate = DateTime.UtcNow.AddHours(2),
+                UserId = userId
             };
 
             _context.Projects.Add(newProject);
@@ -141,6 +143,8 @@ namespace SimpLeX_Backend.Controllers
             return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}.pdf");
         }
 
+
+        // In ProjectController.cs
         [HttpGet("ExportAsTeX/{projectId}")]
         public async Task<IActionResult> ExportAsTeX(string projectId)
         {
