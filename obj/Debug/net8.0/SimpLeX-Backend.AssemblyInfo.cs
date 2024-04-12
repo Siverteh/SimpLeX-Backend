@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SimpLeX-Backend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3c1e772edfb3f82d69c1db518b4867ab94f1d1d9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+146d3f5c6e56cbded783dc75bb83e90c6f0a2d2c")]
 [assembly: System.Reflection.AssemblyProductAttribute("SimpLeX-Backend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SimpLeX-Backend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

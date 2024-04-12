@@ -1,4 +1,4 @@
-using System.Net.Security;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -41,6 +41,7 @@ namespace SimpLeX_Backend.Controllers
                     ProjectId = p.ProjectId,
                     Title = p.Title,
                     Owner = p.Owner,
+                    UserId = p.UserId,
                     LastModifiedDate = p.LastModifiedDate,
                     IsCollaborator = p.Collaborators.Any(c => c.UserId == userId)
                 })
@@ -67,17 +68,14 @@ namespace SimpLeX_Backend.Controllers
                 return Unauthorized("User is not recognized.");
             }
 
-            var norwayTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
-
             var project = new Project
             {
                 Title = model.Title,
                 Owner = userName,
                 LatexCode = "", // Empty initially
                 WorkspaceState = null,
-                CreationDate = norwayTime,
-                LastModifiedDate = norwayTime,
+                CreationDate = DateTime.UtcNow.AddHours(2),
+                LastModifiedDate = DateTime.UtcNow.AddHours(2),
                 UserId = userId // Set the user ID
             };
 
@@ -90,14 +88,18 @@ namespace SimpLeX_Backend.Controllers
         [HttpPost("CopyProject")]
         public async Task<IActionResult> CopyProject([FromBody] CopyProjectRequest model)
         {
-            var originalProject = await _context.Projects.FindAsync(model.ProjectId);
+            var originalProject = await _context.Projects
+                .Include(p => p.Collaborators)
+                .FirstOrDefaultAsync(p => p.ProjectId == model.ProjectId);
             if (originalProject == null)
             {
                 return NotFound("Original project not found.");
             }
 
             var userId = _userManager.GetUserId(User);
-            if (originalProject.UserId != userId)
+            bool isCollaboratorOrOwner = originalProject.UserId == userId ||
+                                         originalProject.Collaborators.Any(c => c.UserId == userId);
+            if (!isCollaboratorOrOwner)
             {
                 return Unauthorized("You do not have permission to copy this project.");
             }
@@ -122,22 +124,23 @@ namespace SimpLeX_Backend.Controllers
         [HttpGet("ExportAsPDF/{projectId}")]
         public async Task<IActionResult> ExportAsPDF(string projectId)
         {
-            var project = await _context.Projects.FindAsync(projectId);
+            var project = await _context.Projects
+                .Include(p => p.Collaborators)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
             if (project == null)
             {
                 return NotFound("Project not found.");
             }
 
-            // Optional: Check if the current user owns the project
             var userId = _userManager.GetUserId(User);
-            if (project.UserId != userId)
+            bool isAuthorized = project.UserId == userId || project.Collaborators.Any(c => c.UserId == userId);
+            if (!isAuthorized)
             {
                 return Unauthorized("You are not authorized to export this project.");
             }
 
             var compiledPdfContent = await _documentService.CompileLatexAsync(project.LatexCode);
-
-            return File(compiledPdfContent, "application/pdf", $"{project.Title}.pdf");
+            return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}.pdf");
         }
 
 
@@ -145,21 +148,24 @@ namespace SimpLeX_Backend.Controllers
         [HttpGet("ExportAsTeX/{projectId}")]
         public async Task<IActionResult> ExportAsTeX(string projectId)
         {
-            var project = await _context.Projects.FindAsync(projectId);
+            var project = await _context.Projects
+                .Include(p => p.Collaborators)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
             if (project == null)
             {
                 return NotFound();
             }
 
-            // Optional: Check if the current user owns the project
             var userId = _userManager.GetUserId(User);
-            if (project.UserId != userId)
+            bool isAuthorized = project.UserId == userId || project.Collaborators.Any(c => c.UserId == userId);
+            if (!isAuthorized)
             {
                 return Unauthorized("You are not authorized to export this project.");
             }
 
             var latexCode = project.LatexCode ?? "No content"; // Placeholder if null
-            return File(Encoding.UTF8.GetBytes(latexCode), "application/x-tex", $"{project.Title}.tex");
+            return File(Encoding.UTF8.GetBytes(latexCode), "application/x-tex",
+                $"{project.Title.Replace(" ", "_")}.tex");
         }
 
         // DELETE: api/Projects/Delete/{projectId}
@@ -183,6 +189,30 @@ namespace SimpLeX_Backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Project deleted successfully." });
+        }
+        
+        [HttpDelete("LeaveProject/{projectId}")]
+        public async Task<IActionResult> LeaveProject(string projectId)
+        {
+            var project = await _context.Projects
+                .Include(p => p.Collaborators)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null)
+            {
+                return NotFound("Project not found.");
+            }
+
+            var userId = _userManager.GetUserId(User);
+            var collaborator = project.Collaborators.FirstOrDefault(c => c.UserId == userId);
+            if (collaborator == null)
+            {
+                return BadRequest("You are not a collaborator on this project.");
+            }
+
+            _context.Collaborators.Remove(collaborator);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "You have successfully left the project." });
         }
     }
 }

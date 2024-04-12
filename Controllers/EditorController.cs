@@ -7,6 +7,7 @@ using SimpLeX_Backend.Data;
 using SimpLeX_Backend.Models;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using SimpLeX_Backend.Services;
 
@@ -55,7 +56,6 @@ namespace SimpLeX_Backend.Controllers
         [HttpPost("Compile")]
         public async Task<IActionResult> Compile([FromBody] LatexRequest model)
         {
-            
             if (string.IsNullOrEmpty(model.ProjectId) || string.IsNullOrWhiteSpace(model.LatexCode))
             {
                 return BadRequest("Invalid model.");
@@ -66,18 +66,65 @@ namespace SimpLeX_Backend.Controllers
             {
                 return NotFound("Project not found.");
             }
-            
+
             var compiledPdfContent = await _documentService.CompileLatexAsync(model.LatexCode);
-            
             if (compiledPdfContent.Length > 0)
             {
-                return File(compiledPdfContent, "application/pdf", $"{project.Title.Replace(" ", "_")}_compiled.pdf");
+                // Calculate word count
+                var wordCount = CalculateWordCount(model.LatexCode);
+
+                // Return file along with word count
+                var pdfFileName = $"{project.Title.Replace(" ", "_")}_compiled.pdf";
+                Response.Headers.Add("X-Word-Count", wordCount.ToString());
+                return File(compiledPdfContent, "application/pdf", pdfFileName);
             }
             else
             {
                 return StatusCode(500, "Compilation failed.");
             }
         }
+
+        public static int CalculateWordCount(string latexString)
+        {
+            // Normalize new lines and remove LaTeX comments
+            var cleanedString = Regex.Replace(latexString, @"%.*?\n", " ");
+
+            // Handle itemize and enumerate differently to include words after \item
+            string[] listEnvironments = { "itemize", "enumerate" };
+            foreach (var env in listEnvironments)
+            {
+                cleanedString = Regex.Replace(cleanedString, $@"\\begin\{{{env}\}}(.*?)\\end\{{{env}\}}", 
+                    new MatchEvaluator((Match m) =>
+                    {
+                        // Remove \item and other LaTeX commands within the list, count words normally
+                        string innerText = m.Groups[1].Value;
+                        innerText = Regex.Replace(innerText, @"\\item", "");  // Remove \item
+                        innerText = Regex.Replace(innerText, @"\\\w+(\[[^\]]*\])?(\{[^\}]*\})?", " ");  // Remove other commands
+                        return innerText;
+                    }), 
+                    RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            }
+
+            // Remove content within other complex LaTeX environments
+            string[] ignoreEnvironments = { "equation", "align", "figure", "table" };
+            foreach (var env in ignoreEnvironments)
+            {
+                cleanedString = Regex.Replace(cleanedString, $@"\\begin\{{{env}\}}.*?\\end\{{{env}\}}", " ", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            }
+
+            // Remove remaining LaTeX commands and braces
+            cleanedString = Regex.Replace(cleanedString, @"\\\w*[\[\(].*?[\]\)]", " "); // Commands with brackets or parentheses
+            cleanedString = Regex.Replace(cleanedString, @"\\\w+", " "); // Commands without arguments
+            cleanedString = Regex.Replace(cleanedString, @"[{}]", " "); // Curly braces
+            cleanedString = Regex.Replace(cleanedString, @"\s+", " "); // Normalize spaces
+
+            // Count words
+            return Regex.Matches(cleanedString, @"\b\w+\b").Count - 11;
+        }
+
+
+
+
         
         [HttpPost]
         [Route("SaveLatex")]
