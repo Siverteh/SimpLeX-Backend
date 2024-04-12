@@ -1,3 +1,4 @@
+using System.Net.Security;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +20,8 @@ namespace SimpLeX_Backend.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly DocumentService _documentService;
 
-        public ProjectController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, DocumentService documentService)
+        public ProjectController(ApplicationDbContext context, UserManager<ApplicationUser> userManager,
+            DocumentService documentService)
         {
             _context = context;
             _userManager = userManager;
@@ -48,8 +50,6 @@ namespace SimpLeX_Backend.Controllers
         }
 
 
-
-        
         [HttpPost("Create")]
         public async Task<IActionResult> CreateProject([FromBody] ProjectRequest model)
         {
@@ -61,11 +61,14 @@ namespace SimpLeX_Backend.Controllers
             // Extract user ID from the JWT token
             var userId = _userManager.GetUserId(User);
             var userName = _userManager.GetUserName(User);
-            
-            if (string.IsNullOrEmpty(userId) ||string.IsNullOrEmpty(userName))
+
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userName))
             {
                 return Unauthorized("User is not recognized.");
             }
+
+            var norwayTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
 
             var project = new Project
             {
@@ -73,8 +76,8 @@ namespace SimpLeX_Backend.Controllers
                 Owner = userName,
                 LatexCode = "", // Empty initially
                 WorkspaceState = null,
-                CreationDate = DateTime.UtcNow.AddHours(2),
-                LastModifiedDate = DateTime.UtcNow.AddHours(2),
+                CreationDate = norwayTime,
+                LastModifiedDate = norwayTime,
                 UserId = userId // Set the user ID
             };
 
@@ -83,7 +86,7 @@ namespace SimpLeX_Backend.Controllers
 
             return Ok(new { message = "Project created successfully.", projectId = project.ProjectId });
         }
-        
+
         [HttpPost("CopyProject")]
         public async Task<IActionResult> CopyProject([FromBody] CopyProjectRequest model)
         {
@@ -104,7 +107,7 @@ namespace SimpLeX_Backend.Controllers
                 Title = model.Title,
                 LatexCode = originalProject.LatexCode,
                 WorkspaceState = originalProject.WorkspaceState,
-                Owner = originalProject.Owner, 
+                Owner = originalProject.Owner,
                 CreationDate = DateTime.UtcNow.AddHours(2),
                 LastModifiedDate = DateTime.UtcNow.AddHours(2),
                 UserId = userId
@@ -115,7 +118,7 @@ namespace SimpLeX_Backend.Controllers
 
             return Ok(new { message = "Project copied successfully.", projectId = newProject.ProjectId });
         }
-        
+
         [HttpGet("ExportAsPDF/{projectId}")]
         public async Task<IActionResult> ExportAsPDF(string projectId)
         {
@@ -137,7 +140,7 @@ namespace SimpLeX_Backend.Controllers
             return File(compiledPdfContent, "application/pdf", $"{project.Title}.pdf");
         }
 
-        
+
         // In ProjectController.cs
         [HttpGet("ExportAsTeX/{projectId}")]
         public async Task<IActionResult> ExportAsTeX(string projectId)
@@ -158,7 +161,7 @@ namespace SimpLeX_Backend.Controllers
             var latexCode = project.LatexCode ?? "No content"; // Placeholder if null
             return File(Encoding.UTF8.GetBytes(latexCode), "application/x-tex", $"{project.Title}.tex");
         }
-        
+
         // DELETE: api/Projects/Delete/{projectId}
         [HttpDelete("Delete/{projectId}")]
         public async Task<IActionResult> DeleteProject(string projectId)

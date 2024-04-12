@@ -10,7 +10,8 @@ using Newtonsoft.Json;
 
 public class WebSocketService
 {
-    private ConcurrentDictionary<string, HashSet<WebSocket>> _socketsByProject = new ConcurrentDictionary<string, HashSet<WebSocket>>();
+    private ConcurrentDictionary<string, HashSet<WebSocket>> _socketsByProject =
+        new ConcurrentDictionary<string, HashSet<WebSocket>>();
 
     public void AddSocketToProject(string projectId, WebSocket socket)
     {
@@ -39,7 +40,8 @@ public class WebSocketService
     public async Task HandleWebSocketAsync(string projectId, WebSocket webSocket)
     {
         var buffer = new byte[1024 * 4];
-        WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        WebSocketReceiveResult result =
+            await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
         while (!result.CloseStatus.HasValue)
         {
@@ -58,6 +60,10 @@ public class WebSocketService
                         break;
                     case "blocklyUpdate":
                         BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
+                        break;
+                    case "newChat":
+                        //saveChatToDB()
+                        BroadcastNewChat(projectId, webSocket, message.Data);
                         break;
                 }
             }
@@ -82,7 +88,7 @@ public class WebSocketService
             await Task.WhenAll(tasks);
         }
     }
-    
+
     private async Task BroadcastBlocklyUpdateImportant(string projectId, WebSocket sender, dynamic blocklyData)
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
@@ -93,12 +99,23 @@ public class WebSocketService
         }
     }
 
+
     private async Task BroadcastBlocklyUpdate(string projectId, WebSocket sender, dynamic blocklyData)
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
             var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
                 .Select(socket => SafeSendAsync(socket, new { Action = "blocklyUpdate", Data = blocklyData }));
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    private async Task BroadcastNewChat(string projectId, WebSocket sender, dynamic chatData)
+    {
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
+        {
+            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, new { Action = "newChat", Data = chatData }));
             await Task.WhenAll(tasks);
         }
     }
@@ -119,5 +136,4 @@ public class WebSocketService
             // Consider handling the failure, e.g., removing the faulty socket.
         }
     }
-
 }
