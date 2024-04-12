@@ -10,31 +10,49 @@ using Newtonsoft.Json;
 
 public class WebSocketService
 {
-    private ConcurrentDictionary<string, HashSet<WebSocket>> _socketsByProject = new ConcurrentDictionary<string, HashSet<WebSocket>>();
+    private ConcurrentDictionary<string, Dictionary<WebSocket, string>> _socketsByProject = new ConcurrentDictionary<string, Dictionary<WebSocket, string>>();
+    private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);  // Create a semaphore for locking
 
-    public void AddSocketToProject(string projectId, WebSocket socket)
+    public async Task AddSocketToProject(string projectId, WebSocket socket, string userName)
     {
-        var sockets = _socketsByProject.GetOrAdd(projectId, _ => new HashSet<WebSocket>());
-        lock (sockets)
+        await semaphore.WaitAsync();  // Asynchronously wait to enter the semaphore
+        try
         {
-            sockets.Add(socket);
+            var sockets = _socketsByProject.GetOrAdd(projectId, _ => new Dictionary<WebSocket, string>());
+            sockets[socket] = userName;
+            Console.WriteLine($"Added {userName} to project {projectId}.");
+            await BroadcastCollaborators(projectId);  // Await the broadcast within the semaphore
+        }
+        finally
+        {
+            semaphore.Release();  // Release the semaphore
         }
     }
 
-    public void RemoveSocketFromProject(string projectId, WebSocket socket)
+    public async Task RemoveSocketFromProject(string projectId, WebSocket socket)
     {
-        if (_socketsByProject.TryGetValue(projectId, out var sockets))
+        await semaphore.WaitAsync();
+        try
         {
-            lock (sockets)
+            if (_socketsByProject.TryGetValue(projectId, out var sockets))
             {
                 sockets.Remove(socket);
                 if (sockets.Count == 0)
                 {
                     _socketsByProject.TryRemove(projectId, out _);
                 }
+                else
+                {
+                    await BroadcastCollaborators(projectId);
+                }
             }
         }
+        finally
+        {
+            semaphore.Release();
+        }
     }
+
 
     public async Task HandleWebSocketAsync(string projectId, WebSocket webSocket)
     {
@@ -51,13 +69,13 @@ public class WebSocketService
                 switch (action)
                 {
                     case "cursorMove":
-                        BroadcastCursorMove(projectId, webSocket, message.Data);
+                        await BroadcastCursorMove(projectId, webSocket, message.Data);
                         break;
                     case "blocklyUpdateImportant":
-                        BroadcastBlocklyUpdateImportant(projectId, webSocket, message.Data);
+                        await BroadcastBlocklyUpdateImportant(projectId, webSocket, message.Data);
                         break;
                     case "blocklyUpdate":
-                        BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
+                        await BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
                         break;
                 }
             }
@@ -70,25 +88,54 @@ public class WebSocketService
         }
 
         await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
-        RemoveSocketFromProject(projectId, webSocket);
+        await RemoveSocketFromProject(projectId, webSocket);
     }
+
+    private async Task BroadcastCollaborators(string projectId)
+    {
+        if (_socketsByProject.TryGetValue(projectId, out var sockets))
+        {
+            var collaborators = sockets.Values.Select(userName => new { userName }).ToList();
+            var message = JsonConvert.SerializeObject(new { Action = "updateCollaborators", Data = collaborators });
+            Console.WriteLine("Sending message to clients: " + message);
+
+            var buffer = Encoding.UTF8.GetBytes(message);
+            var segment = new ArraySegment<byte>(buffer);
+
+            var tasks = sockets.Keys.Where(socket => socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, segment, projectId)); // Notice the projectId is now passed
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    
 
     private async Task BroadcastCursorMove(string projectId, WebSocket sender, dynamic cursorPosition)
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
-            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
-                .Select(socket => SafeSendAsync(socket, new { Action = "cursorMove", Data = cursorPosition }));
+            var data = new { Action = "cursorMove", Data = cursorPosition };
+            var message = JsonConvert.SerializeObject(data);
+            var buffer = Encoding.UTF8.GetBytes(message);
+            var segment = new ArraySegment<byte>(buffer);
+
+            var tasks = sockets.Keys.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, segment, projectId));
             await Task.WhenAll(tasks);
         }
     }
-    
+
     private async Task BroadcastBlocklyUpdateImportant(string projectId, WebSocket sender, dynamic blocklyData)
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
-            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
-                .Select(socket => SafeSendAsync(socket, new { Action = "blocklyUpdateImportant", Data = blocklyData }));
+            var data = new { Action = "blocklyUpdateImportant", Data = blocklyData };
+            var message = JsonConvert.SerializeObject(data);
+            var buffer = Encoding.UTF8.GetBytes(message);
+            var segment = new ArraySegment<byte>(buffer);
+
+            var tasks = sockets.Keys.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, segment, projectId));
             await Task.WhenAll(tasks);
         }
     }
@@ -97,27 +144,41 @@ public class WebSocketService
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
-            var tasks = sockets.Where(socket => socket != sender && socket.State == WebSocketState.Open)
-                .Select(socket => SafeSendAsync(socket, new { Action = "blocklyUpdate", Data = blocklyData }));
+            var data = new { Action = "blocklyUpdate", Data = blocklyData };
+            var message = JsonConvert.SerializeObject(data);
+            var buffer = Encoding.UTF8.GetBytes(message);
+            var segment = new ArraySegment<byte>(buffer);
+
+            var tasks = sockets.Keys.Where(socket => socket != sender && socket.State == WebSocketState.Open)
+                .Select(socket => SafeSendAsync(socket, segment, projectId));
             await Task.WhenAll(tasks);
         }
     }
 
-    private async Task SafeSendAsync(WebSocket socket, object data)
-    {
-        var message = JsonConvert.SerializeObject(data);
-        var buffer = Encoding.UTF8.GetBytes(message);
-        var segment = new ArraySegment<byte>(buffer);
 
-        try
+    private async Task SafeSendAsync(WebSocket socket, ArraySegment<byte> data, string projectId)
+    {
+        if (socket.State == WebSocketState.Open)
         {
-            await socket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+            try
+            {
+                await socket.SendAsync(data, WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send WebSocket message: {ex.Message}");
+                // Call to remove the socket properly if it's no longer valid
+                await RemoveSocketFromProject(projectId, socket);
+            }
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Failed to send WebSocket message: {ex.Message}");
-            // Consider handling the failure, e.g., removing the faulty socket.
+            Console.WriteLine("WebSocket is not in an open state.");
+            // Remove the socket as it's not open
+            await RemoveSocketFromProject(projectId, socket);
         }
     }
+
+
 
 }
