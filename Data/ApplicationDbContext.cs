@@ -19,5 +19,6 @@ namespace SimpLeX_Backend.Data
         
         public DbSet<ShareLink> ShareLinks { get; set; }
 
+        public DbSet<Image> Images { get; set; }
     }
 }
