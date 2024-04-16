@@ -19,37 +19,42 @@ public class ImagesController : ControllerBase
     }
 
     [HttpPost("uploadImage")]
-    public async Task<IActionResult> UploadImage(IFormFile file, [FromForm] string projectId)
+    [Consumes("multipart/form-data")]  // Ensure the endpoint explicitly expects form-data
+    public async Task<IActionResult> UploadImage([FromForm] IFormFile file, [FromForm] string projectId)
     {
         if (file == null || file.Length == 0)
         {
             return BadRequest("No file uploaded.");
         }
+        if (string.IsNullOrWhiteSpace(projectId))
+        {
+            return BadRequest("Project ID is required.");
+        }
 
-        var imageBytes = new byte[file.Length];
-        await file.OpenReadStream().ReadAsync(imageBytes, 0, imageBytes.Length);
-        var imageBase64 = Convert.ToBase64String(imageBytes);
+        var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
+        if (!Directory.Exists(uploadsFolderPath))
+            Directory.CreateDirectory(uploadsFolderPath);
+
+        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+        var filePath = Path.Combine(uploadsFolderPath, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
 
         var image = new Image
         {
             ProjectId = projectId,
-            ImageData = imageBase64
+            ImagePath = filePath,
+            CreationDate = DateTime.UtcNow  // If not defaulting in the model
         };
 
         _context.Images.Add(image);
         await _context.SaveChangesAsync();
 
-        return Ok(new { success = true, ImageId = image.ImageId });
-    }
+        var url = Url.Content($"~/uploads/{fileName}");  // Correctly generate the URL to access the file
 
-    [HttpGet("{projectId}")]
-    public async Task<IActionResult> GetImages(string projectId)
-    {
-        var images = await _context.Images
-            .Where(i => i.ProjectId == projectId)
-            .Select(i => new { i.ImageId, i.ImageData })
-            .ToListAsync();
-
-        return Ok(images);
+        return Ok(new { success = true, url, imageId = image.ImageId });
     }
 }

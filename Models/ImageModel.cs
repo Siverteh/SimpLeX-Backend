@@ -9,11 +9,11 @@ namespace SimpLeX_Backend.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int ImageId { get; set; }
+        public string ImageId { get; set; }
         [Required]
         public string ProjectId { get; set; }
         [Required]
-        public string ImageData { get; set; } // Base64 encoded image data
+        public string ImagePath { get; set; } // Base64 encoded image data
         [Required]
         public DateTime CreationDate { get; set; }
     }

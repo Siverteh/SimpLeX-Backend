@@ -22,10 +22,8 @@ public class WebSocketService
     public void AddSocketToProject(string projectId, WebSocket socket, string userName)
     {
         var sockets = _socketsByProject.GetOrAdd(projectId, _ => new Dictionary<WebSocket, string>());
-        Console.WriteLine("Issue here 6");
         lock (sockets)
         {
-            Console.WriteLine("Issue here 7");
             sockets[socket] = userName;
             BroadcastCollaborators(projectId); // Use Task.Run to avoid deadlock in lock
         }
@@ -35,21 +33,17 @@ public class WebSocketService
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
         {
-            Console.WriteLine("Issue here 8");
             bool shouldBroadcast = false;
             lock (sockets)
             {
-                Console.WriteLine("Issue here 9");
                 if (sockets.Remove(socket) && sockets.Count > 0)
                 {
-                    Console.WriteLine("Issue here 10");
                     shouldBroadcast = true;
                 }
             }
 
             if (shouldBroadcast)
             {
-                Console.WriteLine("Issue here 11");
                 BroadcastCollaborators(projectId);
             }
         }
@@ -59,12 +53,12 @@ public class WebSocketService
     public async Task HandleWebSocketAsync(string projectId, WebSocket webSocket)
     {
         var buffer = new byte[1024 * 4];
-        Console.WriteLine("Issue here 12");
         WebSocketReceiveResult result =
             await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
         Console.WriteLine("Issue here 13");
 
+        
         while (!result.CloseStatus.HasValue)
         {
             var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
@@ -72,7 +66,6 @@ public class WebSocketService
             {
                 dynamic message = JsonConvert.DeserializeObject(messageJson);
                 string action = message.Action;
-                Console.WriteLine("Issue here 14");
                 switch (action)
                 {
                     case "cursorMove":
@@ -99,11 +92,8 @@ public class WebSocketService
             result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
         }
 
-        Console.WriteLine("Issue here 15");
         await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
-        Console.WriteLine("Issue here 16");
         await RemoveSocketFromProject(projectId, webSocket);
-        Console.WriteLine("Issue here 17");
     }
 
     private async Task SaveChatToDb(string projectId, dynamic chatData)
