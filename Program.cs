@@ -14,6 +14,9 @@ using System.Text; // For Encoding
 using System;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
+using Amazon.S3;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +36,18 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<WebSocketService>();
+
+var awsOptions = builder.Configuration.GetAWSOptions("AWS");
+awsOptions.Credentials = new BasicAWSCredentials(
+    builder.Configuration["AWS:AccessKey"],
+    builder.Configuration["AWS:SecretKey"]
+);
+awsOptions.Region = Amazon.RegionEndpoint.GetBySystemName(
+    builder.Configuration["AWS:Region"] ?? "eu-north-1"
+);
+
+builder.Services.AddDefaultAWSOptions(awsOptions);
+builder.Services.AddAWSService<IAmazonS3>();
 
 // Use the constructed connection string to add your DbContext with Npgsql for PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
