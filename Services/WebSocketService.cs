@@ -6,11 +6,18 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Newtonsoft.Json;
+using SimpLeX_Backend.Data;
+using SimpLeX_Backend.Models;
 
 public class WebSocketService
 {
-    private ConcurrentDictionary<string, Dictionary<WebSocket, string>> _socketsByProject = new ConcurrentDictionary<string, Dictionary<WebSocket, string>>();
+    private readonly ApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
+
+    private ConcurrentDictionary<string, Dictionary<WebSocket, string>> _socketsByProject =
+        new ConcurrentDictionary<string, Dictionary<WebSocket, string>>();
 
     public void AddSocketToProject(string projectId, WebSocket socket, string userName)
     {
@@ -20,7 +27,7 @@ public class WebSocketService
         {
             Console.WriteLine("Issue here 7");
             sockets[socket] = userName;
-            BroadcastCollaborators(projectId);  // Use Task.Run to avoid deadlock in lock
+            BroadcastCollaborators(projectId); // Use Task.Run to avoid deadlock in lock
         }
     }
 
@@ -39,6 +46,7 @@ public class WebSocketService
                     shouldBroadcast = true;
                 }
             }
+
             if (shouldBroadcast)
             {
                 Console.WriteLine("Issue here 11");
@@ -56,7 +64,7 @@ public class WebSocketService
             await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
         Console.WriteLine("Issue here 13");
-        
+
         while (!result.CloseStatus.HasValue)
         {
             var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
@@ -77,7 +85,8 @@ public class WebSocketService
                         await BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
                         break;
                     case "newChat":
-                        //saveChatToDB()
+                        Console.WriteLine("case newChat???");
+                        await SaveChatToDb(projectId, message.Data);
                         BroadcastNewChat(projectId, webSocket, message.Data);
                         break;
                 }
@@ -97,6 +106,50 @@ public class WebSocketService
         Console.WriteLine("Issue here 17");
     }
 
+    private async Task SaveChatToDb(string projectId, dynamic chatData)
+    {
+        // Validation for projectId
+        if (string.IsNullOrWhiteSpace(projectId))
+        {
+            throw new ArgumentException("Project ID cannot be null or empty.", nameof(projectId));
+        }
+
+        // Validation for userId
+        if (string.IsNullOrWhiteSpace(chatData.userId))
+        {
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(chatData.userId));
+        }
+
+        // Validation for message content
+        if (string.IsNullOrWhiteSpace(chatData.content))
+        {
+            throw new ArgumentException("Message content cannot be null or empty.", nameof(chatData.content));
+        }
+
+        // Validation for timestamp
+        if (chatData.timestamp == null || !DateTime.TryParse(chatData.timestamp, out DateTime parsedTimestamp))
+        {
+            throw new ArgumentException("Timestamp is either null or not in a valid DateTime format.",
+                nameof(chatData.timestamp));
+        }
+
+        Console.WriteLine("hello guys");
+        // Prepare model data.
+        var chat = new ChatMessage
+        {
+            ProjectId = projectId,
+            UserId = chatData.userId,
+            Message = chatData.content,
+            Timestamp = chatData.timestamp,
+        };
+
+        // Add chat to database.
+        _context.ChatMessages.Add(chat);
+
+        // Save changes to the database.
+        await _context.SaveChangesAsync();
+    }
+
     private async Task BroadcastCollaborators(string projectId)
     {
         if (_socketsByProject.TryGetValue(projectId, out var sockets))
@@ -114,7 +167,6 @@ public class WebSocketService
         }
     }
 
-    
 
     private async Task BroadcastCursorMove(string projectId, WebSocket sender, dynamic cursorPosition)
     {
@@ -179,7 +231,7 @@ public class WebSocketService
         }
     }
 
-    
+
     private async Task SafeSendAsync(WebSocket socket, ArraySegment<byte> data, string projectId)
     {
         if (socket.State == WebSocketState.Open)

@@ -18,6 +18,8 @@ namespace SimpLeX_Backend.Data
         public DbSet<Collaborator> Collaborators { get; set; }
         
         public DbSet<ShareLink> ShareLinks { get; set; }
+        
+        public DbSet<ChatMessage> ChatMessages { get; set; }
 
     }
 }
