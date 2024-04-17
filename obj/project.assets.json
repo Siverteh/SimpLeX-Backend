@@ -4956,24 +4956,26 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Eier\\.nuget\\packages\\": {}
+    "C:\\Users\\siver\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
+      "projectUniqueName": "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
       "projectName": "SimpLeX-Backend",
-      "projectPath": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
-      "packagesPath": "C:\\Users\\Eier\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Eier\\SimpLeX\\SimpLeX-Backend\\obj\\",
+      "projectPath": "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\SimpLeX-Backend.csproj",
+      "packagesPath": "C:\\Users\\siver\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\siver\\SimpLeX\\SimpLeX-Backend\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Eier\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\siver\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
