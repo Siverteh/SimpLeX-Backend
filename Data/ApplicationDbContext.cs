@@ -22,5 +22,7 @@ namespace SimpLeX_Backend.Data
         public DbSet<ChatMessage> ChatMessages { get; set; }
 
         public DbSet<Image> Images { get; set; }
+        
+        public DbSet<Citation> Citations { get; set; }
     }
 }
