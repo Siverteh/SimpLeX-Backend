@@ -140,5 +140,4 @@ public class ImagesController : ControllerBase
             return Ok(new { success = false, message = "Image file not found, but database entry removed." });
         }
     }
-
 }
