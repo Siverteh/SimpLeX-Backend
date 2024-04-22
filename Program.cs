@@ -56,7 +56,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins("http://10.225.149.19:31688/")
+        builder => builder.WithOrigins("http://127.0.0.1:54519/")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
