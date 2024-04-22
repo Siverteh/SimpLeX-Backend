@@ -10,6 +10,8 @@ namespace SimpLeX_Backend.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public string CitationId { get; set; } = Guid.NewGuid().ToString();
+        
+        public string? CitationKey { get; set; }  // Field to store the citation key
 
         [Required] 
         public string ProjectId { get; set; } = null!;
