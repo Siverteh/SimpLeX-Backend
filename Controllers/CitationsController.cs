@@ -64,6 +64,27 @@ public class CitationsController : ControllerBase
 
         try
         {
+            // Generate Citation Key
+            string baseKey = citation.Authors?.Split(',')[0].Split(' ').LastOrDefault() ?? "UnknownAuthor";
+            baseKey += citation.Year ?? "UnknownYear";
+            string citationKey = baseKey;
+            int suffix = 1;
+
+            // Check for existing citations with the same base key
+            var existingCitations = _context.Citations
+                .Where(c => c.ProjectId == citation.ProjectId &&
+                            c.Authors == citation.Authors &&
+                            c.Year == citation.Year)
+                .ToList();
+
+            while (existingCitations.Any(c => c.CitationKey == citationKey))
+            {
+                citationKey = $"{baseKey}_{suffix++}";
+            }
+
+            // Set the generated citation key
+            citation.CitationKey = citationKey;
+
             citation.CreatedDate = DateTime.UtcNow;
             citation.LastModifiedDate = DateTime.UtcNow;
 
@@ -72,7 +93,10 @@ public class CitationsController : ControllerBase
 
             _logger.LogInformation($"Citation added successfully: {citation.CitationId}");
             return Ok(new
-                { success = true, citationId = citation.CitationId, message = "Citation added successfully." });
+            {
+                success = true, citationId = citation.CitationId, citationKey = citation.CitationKey,
+                message = "Citation added successfully."
+            });
         }
         catch (Exception ex)
         {
@@ -80,6 +104,7 @@ public class CitationsController : ControllerBase
             return StatusCode(500, "Internal server error while adding citation");
         }
     }
+
 
     // DELETE: api/Citation/DeleteCitation/{citationId}
     [HttpDelete("DeleteCitation")]
@@ -105,5 +130,4 @@ public class CitationsController : ControllerBase
         // Return a success message (no file system operation needed for citations)
         return Ok(new { success = true, message = "Citation deleted successfully." });
     }
-
 }
