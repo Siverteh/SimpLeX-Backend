@@ -10,14 +10,23 @@ using Microsoft.AspNetCore.Identity;
 using Newtonsoft.Json;
 using SimpLeX_Backend.Data;
 using SimpLeX_Backend.Models;
+using SimpLeX_Backend.Controllers;
 
 public class WebSocketService
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
-
+    private readonly ChatController _chatController;
+    
     private ConcurrentDictionary<string, Dictionary<WebSocket, string>> _socketsByProject =
         new ConcurrentDictionary<string, Dictionary<WebSocket, string>>();
+
+    public WebSocketService(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+    {
+        _context = context;
+        _userManager = userManager;
+        _chatController = new ChatController(context); // Pass the context to the ChatController
+    }
 
     public void AddSocketToProject(string projectId, WebSocket socket, string userName)
     {
@@ -55,7 +64,7 @@ public class WebSocketService
         var buffer = new byte[1024 * 4];
         WebSocketReceiveResult result =
             await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-        
+
         while (!result.CloseStatus.HasValue)
         {
             var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
@@ -75,8 +84,7 @@ public class WebSocketService
                         await BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
                         break;
                     case "newChat":
-                        Console.WriteLine("case newChat???");
-                        await SaveChatToDb(projectId, message.Data);
+                        _chatController.SaveChatToDb(projectId, message.Data);
                         BroadcastNewChat(projectId, webSocket, message.Data);
                         break;
                 }
@@ -91,50 +99,6 @@ public class WebSocketService
 
         await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
         await RemoveSocketFromProject(projectId, webSocket);
-    }
-
-    private async Task SaveChatToDb(string projectId, dynamic chatData)
-    {
-        // Validation for projectId
-        if (string.IsNullOrWhiteSpace(projectId))
-        {
-            throw new ArgumentException("Project ID cannot be null or empty.", nameof(projectId));
-        }
-
-        // Validation for userId
-        if (string.IsNullOrWhiteSpace(chatData.userId))
-        {
-            throw new ArgumentException("User ID cannot be null or empty.", nameof(chatData.userId));
-        }
-
-        // Validation for message content
-        if (string.IsNullOrWhiteSpace(chatData.content))
-        {
-            throw new ArgumentException("Message content cannot be null or empty.", nameof(chatData.content));
-        }
-
-        // Validation for timestamp
-        if (chatData.timestamp == null || !DateTime.TryParse(chatData.timestamp, out DateTime parsedTimestamp))
-        {
-            throw new ArgumentException("Timestamp is either null or not in a valid DateTime format.",
-                nameof(chatData.timestamp));
-        }
-
-        Console.WriteLine("hello guys");
-        // Prepare model data.
-        var chat = new ChatMessage
-        {
-            ProjectId = projectId,
-            UserId = chatData.userId,
-            Message = chatData.content,
-            Timestamp = chatData.timestamp,
-        };
-
-        // Add chat to database.
-        _context.ChatMessages.Add(chat);
-
-        // Save changes to the database.
-        await _context.SaveChangesAsync();
     }
 
     private async Task BroadcastCollaborators(string projectId)

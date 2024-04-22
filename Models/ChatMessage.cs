@@ -18,5 +18,5 @@ public class ChatMessage
 
     [Required] public string Message { get; set; }
 
-    [Required] public DateTime Timestamp { get; set; }
+    [Required] public string Timestamp { get; set; }
 }
