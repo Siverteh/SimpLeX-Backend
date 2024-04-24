@@ -14,6 +14,9 @@ using System.Text; // For Encoding
 using System;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
+using Amazon.S3;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,7 +26,7 @@ var server = Environment.GetEnvironmentVariable("DATABASE_HOST") ?? "localhost";
 var port = Environment.GetEnvironmentVariable("DATABASE_PORT") ?? "5432"; // Default PostgreSQL port
 var database = Environment.GetEnvironmentVariable("DATABASE_NAME") ?? "simplex_db";
 var username = Environment.GetEnvironmentVariable("DATABASE_USER") ?? "postgres";
-var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "skallesverd5"; // Make sure to replace 'changeit' with your real password
+var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "inuifvnui"; // Make sure to replace 'changeit' with your real password
 
 var connectionString = $"Host={server};Port={port};Database={database};Username={username};Password={password};";
 
@@ -34,6 +37,18 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<WebSocketService>();
 
+var awsOptions = builder.Configuration.GetAWSOptions("AWS");
+awsOptions.Credentials = new BasicAWSCredentials(
+    builder.Configuration["AWS:AccessKey"],
+    builder.Configuration["AWS:SecretKey"]
+);
+awsOptions.Region = Amazon.RegionEndpoint.GetBySystemName(
+    builder.Configuration["AWS:Region"] ?? "eu-north-1"
+);
+
+builder.Services.AddDefaultAWSOptions(awsOptions);
+builder.Services.AddAWSService<IAmazonS3>();
+
 // Use the constructed connection string to add your DbContext with Npgsql for PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -41,7 +56,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins("http://10.225.149.19:31688/")
+        builder => builder.WithOrigins("http://127.0.0.1:54519/")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
