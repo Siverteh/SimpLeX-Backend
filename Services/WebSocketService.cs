@@ -88,6 +88,7 @@ public class WebSocketService
                         await BroadcastBlocklyUpdate(projectId, webSocket, message.Data);
                         break;
                     case "newChat":
+                        Console.Write(message.Data);
                         _chatController.SaveChatToDb(projectId, message.Data);
                         BroadcastNewChat(projectId, webSocket, message.Data);
                         break;

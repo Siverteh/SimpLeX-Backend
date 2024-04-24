@@ -7,3 +7,6 @@ riderModule.iml
 .name
 .idea/
 global.json
+.idea/*
+obj
+bin
