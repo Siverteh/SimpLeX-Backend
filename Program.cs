@@ -26,7 +26,7 @@ var server = Environment.GetEnvironmentVariable("DATABASE_HOST") ?? "localhost";
 var port = Environment.GetEnvironmentVariable("DATABASE_PORT") ?? "5432"; // Default PostgreSQL port
 var database = Environment.GetEnvironmentVariable("DATABASE_NAME") ?? "simplex_db";
 var username = Environment.GetEnvironmentVariable("DATABASE_USER") ?? "postgres";
-var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "skallesverd5"; // Make sure to replace 'changeit' with your real password
+var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "inuifvnui"; // Make sure to replace 'changeit' with your real password
 
 var connectionString = $"Host={server};Port={port};Database={database};Username={username};Password={password};";
 

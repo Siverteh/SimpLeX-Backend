@@ -19,8 +19,8 @@ public class ChatController : ControllerBase
     [HttpPost("SaveChatToDb")]
     public async Task SaveChatToDb(string projectId, dynamic chatData)
     {
-        Console.WriteLine("Received chat data: UserId = {0}, Content = {1}, Timestamp = {2}",
-            chatData.userId, chatData.content, chatData.timestamp);
+        Console.WriteLine("Received chat data: UserId = {0}, Content = {1}, Timestamp = {2}, Username = {3}",
+            chatData.userId, chatData.content, chatData.timestamp, chatData.username);
 
         if (_context == null)
         {
@@ -40,7 +40,8 @@ public class ChatController : ControllerBase
                 ProjectId = projectId,
                 UserId = chatData.userId,
                 Message = chatData.content,
-                Timestamp = chatData.timestamp
+                Timestamp = chatData.timestamp,
+                UserName = chatData.userName
             };
 
 
