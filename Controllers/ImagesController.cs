@@ -26,6 +26,31 @@ public class ImagesController : ControllerBase
         _bucketName = configuration["AWS:BucketName"];
         _logger = logger;
     }
+    
+    [HttpGet("GetImages")]
+    public async Task<IActionResult> GetImages(string projectId)
+    {
+        if (string.IsNullOrEmpty(projectId))
+        {
+            return BadRequest("Project ID is required.");
+        }
+
+        try
+        {
+            var images = await _context.Images
+                .Where(img => img.ProjectId == projectId)
+                .Select(img => new { img.ImagePath, img.ImageId })
+                .ToListAsync();
+
+            return Ok(new { images = images });  // Wrap in an object with 'images' as a key
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Failed to get images", ex);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
 
     [HttpPost("UploadImage")]
     [Consumes("multipart/form-data")]
@@ -45,25 +70,20 @@ public class ImagesController : ControllerBase
             return BadRequest("Project ID is required.");
         }
 
-        var keyName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-        var contentType = file.ContentType;
-        _logger.LogInformation($"File details: Name={keyName}, ContentType={contentType}");
+        var fileName = Guid.NewGuid().ToString() + file.FileName.ToString();
+        var filePath = Path.Combine("/data/images", fileName);  // Ensure this path is correctly mapped to your PVC mount
+        _logger.LogInformation($"File details: Name={fileName}, ContentType={file.ContentType}");
 
         try
         {
-            var putRequest = new PutObjectRequest
+            // Save the file to the local file system
+            using (var stream = new FileStream(filePath, FileMode.Create))
             {
-                BucketName = _bucketName,
-                Key = keyName,
-                InputStream = file.OpenReadStream(),
-                ContentType = contentType,
-            };
+                await file.CopyToAsync(stream);
+            }
+            _logger.LogInformation("File uploaded successfully to local storage");
 
-            _logger.LogInformation($"Attempting to upload file to S3: Bucket={_bucketName}, Key={keyName}");
-            var response = await _s3Client.PutObjectAsync(putRequest);
-            _logger.LogInformation("File uploaded successfully to S3");
-
-            var imageUrl = $"https://{_bucketName}.s3.amazonaws.com/{keyName}";
+            var imageUrl = $"{fileName}";  // Adjust the URL path according to how you serve static content
 
             var image = new Image
             {
@@ -78,15 +98,46 @@ public class ImagesController : ControllerBase
 
             return Ok(new { success = true, url = imageUrl, imageId = image.ImageId });
         }
-        catch (AmazonS3Exception awsEx)
-        {
-            _logger.LogError($"AWS S3 error: {awsEx.Message}", awsEx);
-            return StatusCode(500, $"AWS S3 error: {awsEx.Message}");
-        }
         catch (Exception ex)
         {
             _logger.LogError($"Internal server error: {ex.Message}", ex);
             return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
+    }
+    
+    [HttpDelete("DeleteImage")]
+    public async Task<IActionResult> DeleteImage(string imagePath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return BadRequest("Image path is required.");
+        }
+
+        // Validate the imagePath to avoid path traversal issues
+        var fileName = Path.GetFileName(imagePath);
+        var image = await _context.Images.FirstOrDefaultAsync(img => img.ImagePath.EndsWith(fileName));
+        if (image == null)
+        {
+            return NotFound("Image not found.");
+        }
+
+        // Proceed to delete from database
+        _context.Images.Remove(image);
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Image deleted from database.");
+
+        // Attempt to delete from file system
+        var filePath = Path.Combine("/data/images", fileName);  // Construct path safely
+        if (System.IO.File.Exists(filePath))
+        {
+            System.IO.File.Delete(filePath);
+            _logger.LogInformation("Image file deleted from storage.");
+            return Ok(new { success = true, message = "Image deleted successfully." });
+        }
+        else
+        {
+            _logger.LogWarning("Image file not found on storage.");
+            return Ok(new { success = false, message = "Image file not found, but database entry removed." });
         }
     }
 }
