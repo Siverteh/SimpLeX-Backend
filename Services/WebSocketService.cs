@@ -76,6 +76,7 @@ public class WebSocketService
             {
                 dynamic message = JsonConvert.DeserializeObject(messageJson);
                 string action = message.Action;
+                
                 switch (action)
                 {
                     case "cursorMove":
