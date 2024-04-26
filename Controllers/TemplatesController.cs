@@ -23,27 +23,49 @@ public class TemplatesController : ControllerBase
 
     // GET: api/Templates/GetTemplates
     [HttpGet("GetTemplates")]
-    public async Task<IActionResult> GetTemplates()
+    public async Task<ActionResult<IEnumerable<Template>>> GetTemplates(bool isCustom, string userId = null)
     {
-        try
+        if (isCustom && string.IsNullOrEmpty(userId))
         {
-            var templates = await _context.Templates.ToListAsync();
-            return Ok(new { success = true, templates });
+            return BadRequest("User ID is required for custom templates.");
         }
-        catch (Exception ex)
+
+        // Adjusted query to properly segregate global and custom templates
+        IQueryable<Template> query = _context.Templates;
+
+        if (isCustom)
         {
-            _logger.LogError("Failed to retrieve templates: {Exception}", ex);
-            return StatusCode(500, "Internal server error while retrieving templates");
+            // Fetch only custom templates that belong to the specified user
+            query = query.Where(t => t.IsCustom && t.UserId == userId);
         }
+        else
+        {
+            // Fetch only global templates
+            query = query.Where(t => !t.IsCustom);
+        }
+
+        var templates = await query.Select(t => new
+        {
+            TemplateId = t.TemplateId,
+            TemplateName = t.TemplateName,
+            XMLContent = t.XMLContent,
+            ImagePath = t.ImagePath,
+            IsCustom = t.IsCustom,
+            UserId = t.UserId
+        }).ToListAsync();
+
+        return Ok(new { success = true, templates });
     }
+
+
 
     // POST: api/Templates/AddTemplate
     [HttpPost("AddTemplate")]
-    public async Task<IActionResult> AddTemplate([FromBody] Template template)
+    public async Task<IActionResult> AddTemplate([FromBody] TemplateRequest templateRequest)
     {
-        _logger.LogInformation($"Received template to add: {JsonConvert.SerializeObject(template)}");
+        _logger.LogInformation($"Received template to add: {JsonConvert.SerializeObject(templateRequest)}");
 
-        if (template == null)
+        if (templateRequest == null)
         {
             _logger.LogError("Template object is null.");
             return BadRequest("Template object is required.");
@@ -51,8 +73,16 @@ public class TemplatesController : ControllerBase
 
         try
         {
-            template.CreatedDate = DateTime.UtcNow.AddHours(2);
-            template.ModifiedDate = DateTime.UtcNow.AddHours(2);
+            var template = new Template
+            {
+                TemplateName = templateRequest.TemplateName,
+                XMLContent = templateRequest.XMLContent,
+                ImagePath = templateRequest.ImagePath,
+                IsCustom = templateRequest.IsCustom,
+                UserId = templateRequest.UserId,
+                CreatedDate = DateTime.UtcNow.AddHours(2),
+                ModifiedDate = DateTime.UtcNow.AddHours(2),
+            };
 
             _context.Templates.Add(template);
             await _context.SaveChangesAsync();

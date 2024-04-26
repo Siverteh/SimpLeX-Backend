@@ -73,7 +73,7 @@ namespace SimpLeX_Backend.Controllers
                 Title = model.Title,
                 Owner = userName,
                 LatexCode = "", // Empty initially
-                WorkspaceState = null,
+                WorkspaceState = model.WorkspaceState,
                 CreationDate = DateTime.UtcNow.AddHours(2),
                 LastModifiedDate = DateTime.UtcNow.AddHours(2),
                 UserId = userId // Set the user ID
