@@ -119,11 +119,11 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
-/*app.UseStaticFiles(new StaticFileOptions
+app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider("/data/images"),
     RequestPath = "/images"
-});*/
+});
 
 
 // Configure the HTTP request pipeline.
