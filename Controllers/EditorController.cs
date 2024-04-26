@@ -173,7 +173,7 @@ namespace SimpLeX_Backend.Controllers
             await _context.SaveChangesAsync();
 
             // Redirect to the frontend handling route
-            var baseUrl = "http://127.0.0.1:54519";  // Change to your actual domain
+            var baseUrl = "http://10.225.149.19:31688/";  // Change to your actual domain
             var link = $"{baseUrl}/Redeem/{token}";
 
             return Ok(new { link = link });

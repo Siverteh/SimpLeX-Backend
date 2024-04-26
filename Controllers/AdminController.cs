@@ -59,22 +59,27 @@ namespace SimpLeX_Backend.Controllers
         }
         
         [HttpPost("AddTemplate")]
-        public async Task<IActionResult> AddTemplate([FromBody] Template template)
+        public async Task<IActionResult> AddTemplate([FromBody] TemplateRequest templateRequest)
         {
-            _logger.LogInformation($"Received template to add: {template.TemplateName}");
+            _logger.LogInformation($"Received template to add: {templateRequest.TemplateName}");
 
-            if (template == null)
+            if (templateRequest == null)
             {
                 _logger.LogError("Template object is null.");
                 return BadRequest("Template object is required.");
             }
 
-            // Set IsCustom to false for all templates added through this method
-            template.ImagePath = Path.Combine("/data/images", template.ImagePath);
-            template.IsCustom = false;
-            template.CreatedDate = DateTime.UtcNow.AddHours(2);
-            template.ModifiedDate = DateTime.UtcNow.AddHours(2);
-
+            var template = new Template
+            {
+                TemplateName = templateRequest.TemplateName,
+                XMLContent = templateRequest.XMLContent,
+                ImagePath = templateRequest.ImagePath,
+                IsCustom = templateRequest.IsCustom,
+                CreatedDate = DateTime.UtcNow.AddHours(2),
+                ModifiedDate = DateTime.UtcNow.AddHours(2),
+                UserId = null,
+                User = null
+            };
             try
             {
                 _context.Templates.Add(template);

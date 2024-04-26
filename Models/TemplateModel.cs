@@ -18,21 +18,19 @@ namespace SimpLeX_Backend.Models
         [Required]
         public string XMLContent { get; set; }  // XML data that configures the workspace
 
-        public string ImagePath { get; set; }  // Optional path to an image preview of the template
+        public string? ImagePath { get; set; }  // Optional path to an image preview of the template
 
         [Required]
         public bool IsCustom { get; set; }  // False for global templates, true for user-created
 
         // Nullable: only set for user-specific templates
-        public string UserId { get; set; } 
+        public string? UserId { get; set; } 
 
         [ForeignKey("UserId")]
-        public virtual ApplicationUser User { get; set; }  // Assuming use of ASP.NET Core Identity
+        public virtual ApplicationUser? User { get; set; }  // Assuming use of ASP.NET Core Identity
 
-        [Required]
         public DateTime CreatedDate { get; set; }
 
-        [Required]
         public DateTime ModifiedDate { get; set; }
     }
 }
